@@ -1,0 +1,167 @@
+﻿// 20191820HW24.cpp : 이 파일에는 'main' 함수가 포함됩니다. 거기서 프로그램 실행이 시작되고 종료됩니다.
+//
+
+// 20191820HW23.cpp : 이 파일에는 'main' 함수가 포함됩니다. 거기서 프로그램 실행이 시작되고 종료됩니다.
+//
+
+
+#include <iostream>
+#include <math.h>
+
+double function(double x);
+double Bisect(double xl, double xu, double es, int imax);
+double FalsePosition(double xl, double xu, double es, int imax);
+double Newton(double x0, double es, int imax);
+double Secant(double x0, double es, int imax);
+
+int main()
+{
+	double xl = 12., xu = 16.;
+	double es = 1.e-2, xr;
+	int imax = 1000;
+
+	do {
+		printf(" xl=? \n"); scanf_s("%lf", &xl); printf(" xu=? \n"); scanf_s("%lf", &xu);
+		printf(" fl= %15.7e, fu= %15.7e\n", function(xl), function(xu));
+	} while (function(xl) * function(xu) > 0.);
+	if (function(xl) * function(xu) <= 0.) {
+		printf("  \n");
+		xr = Bisect(xl, xu, es, imax);
+		xr = FalsePosition(xl, xu, es, imax);
+		xr = Newton(xl, es, imax);
+		xr = Secant(xl, es, imax);
+	}
+
+	return 0;
+}
+
+double function(double x)
+{
+	//double f = 9.8 * 68.1 / x * (1. - exp(-x * 10. / 68.1)) - 40.;
+	//double f = log(x * x) - 0.7; //log(x*x)-0.7
+	double f = log(x) - 0.5;
+	return f;
+}
+
+double dfunction(double x)
+{
+	//double f = 2. / x;
+	double f = 1. / x;
+	return f;
+}
+
+double Secant(double x0, double es, int imax)
+{
+	FILE* fp = _fsopen("Secant.out", "w", _SH_DENYNO);
+	printf(" Secant Method \n");
+
+	double delta= 0.01, fr, frold, frold2, xr, xrold, xrold2, ea, dfn; // difference
+	int iter = 0;
+	xr = x0 + x0 * delta; xrold = x0;
+	frold = function(xrold); fr = function(xr);
+	do
+	{
+		xrold2 = xrold; xrold = xr; // xrold = xi
+		frold2 = frold; frold = fr;
+		dfn = (frold - frold2) / (xrold - xrold2); // 이전 Step의 f(xi)를 사용해서 f(xi+dxi)를 구함 (iter =5)
+		//dfn = (function(xrold + xrold * delta) - function(xrold)) / (delta * xrold); //( f(xi+dxi) - f(xi) ) / (dxi) -> 매 Step마다 f(xi+dxi)를 구함 (iter=4)
+		xr = xrold - fr / dfn; // xr = xi+1
+		fr = function(xr);
+		iter++;
+		if (xr != 0.) ea = fabs((xr - xrold) / xr) * 100.;
+		fprintf(fp, " %4d  %15.7e  %15.7e %15.7e \n", iter, xr, fr, ea);
+		printf(" iter= %4d  xr= %15.7e  fr= %15.7e error= %15.7e \n", iter, xr, fr, ea);
+	} while (!(ea < es || iter >= imax));
+	fclose(fp);
+
+	return xr;
+}
+
+double Newton(double x0, double es, int imax)
+{
+	FILE* fp = _fsopen("Newton.out", "w", _SH_DENYNO);
+	printf(" Newton-Raphson Method \n");
+
+	double fr, xr = x0, xrold, ea;
+	int iter = 0;
+	do
+	{
+		xrold = xr;
+		xr = xrold - function(xrold) / dfunction(xrold); // xi+1 = xi -f(xi)/f`(xi)
+		fr = function(xr);
+		iter++;
+		if (xr != 0.) ea = fabs((xr - xrold) / xr) * 100.;
+		fprintf(fp, " %4d  %15.7e  %15.7e %15.7e \n", iter, xr, fr, ea);
+		printf(" iter= %4d  xr= %15.7e  fr= %15.7e error= %15.7e \n", iter, xr, fr, ea);
+	} while (!(ea < es || iter >= imax));
+	fclose(fp);
+
+	return xr;
+}
+
+double FalsePosition(double xl, double xu, double es, int imax)
+{
+	FILE* fp = _fsopen("FalsePosition.out", "w", _SH_DENYNO);
+	printf(" False-Position Method \n");
+
+	double fl, fr, fu, xr = xl, xrold, ea, test;
+	int iter = 0;
+	fl = function(xl);
+	fu = function(xu);
+	do
+	{
+		xrold = xr;
+		// xr = (xl + xu) / 2.;
+		xr = xu - fu * (xl - xu) / (fl - fu);
+		fr = function(xr);
+		iter++;
+		if (xr != 0.) ea = fabs((xr - xrold) / xr) * 100.;
+		test = fl * fr;
+		if (test < 0.) { xu = xr; fu = function(xu); } // upper <- xr
+		else if (test > 0.) { xl = xr; fl = function(xl); } // lower <- xr
+		else ea = 0.;
+		fprintf(fp, " %4d  %15.7e  %15.7e %15.7e \n", iter, xr, fr, ea);
+		printf(" iter= %4d  xr= %15.7e  fr= %15.7e error= %15.7e \n", iter, xr, fr, ea);
+	} while (!(ea < es || iter >= imax));
+	fclose(fp);
+
+	return xr;
+}
+
+double Bisect(double xl, double xu, double es, int imax)
+{
+	FILE* fp = _fsopen("Bisection.out", "w", _SH_DENYNO);
+	printf(" Bisection Method \n");
+
+	double fl, fr, xr = xl, xrold, ea, test;
+	int iter = 0;
+	fl = function(xl);
+	do
+	{
+		xrold = xr;
+		xr = (xl + xu) / 2.;
+		fr = function(xr);
+		iter++;
+		if (xr != 0.) ea = fabs((xr - xrold) / xr) * 100.;
+		test = fl * fr;
+		if (test < 0.) xu = xr;
+		else if (test > 0.) { xl = xr; fl = fr; }
+		else ea = 0.;
+		fprintf(fp, " %4d  %15.7e  %15.7e %15.7e \n", iter, xr, fr, ea);
+		printf(" iter= %4d  xr= %15.7e  fr= %15.7e error= %15.7e \n", iter, xr, fr, ea);
+	} while (!(ea < es || iter >= imax));
+	fclose(fp);
+
+	return xr;
+}
+
+// 프로그램 실행: <Ctrl+F5> 또는 [디버그] > [디버깅하지 않고 시작] 메뉴
+// 프로그램 디버그: <F5> 키 또는 [디버그] > [디버깅 시작] 메뉴
+
+// 시작을 위한 팁: 
+//   1. [솔루션 탐색기] 창을 사용하여 파일을 추가/관리합니다.
+//   2. [팀 탐색기] 창을 사용하여 소스 제어에 연결합니다.
+//   3. [출력] 창을 사용하여 빌드 출력 및 기타 메시지를 확인합니다.
+//   4. [오류 목록] 창을 사용하여 오류를 봅니다.
+//   5. [프로젝트] > [새 항목 추가]로 이동하여 새 코드 파일을 만들거나, [프로젝트] > [기존 항목 추가]로 이동하여 기존 코드 파일을 프로젝트에 추가합니다.
+//   6. 나중에 이 프로젝트를 다시 열려면 [파일] > [열기] > [프로젝트]로 이동하고 .sln 파일을 선택합니다.
